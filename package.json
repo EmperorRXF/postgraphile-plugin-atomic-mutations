@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "Postgraphile plugin to enable mutation atomicty with GraphQL requests containing multiple mutations",
   "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "scripts": {
     "prebuild": "rimraf dist",
     "build": "tsc",
