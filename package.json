@@ -1,0 +1,49 @@
+{
+  "name": "postgraphile-plugin-atomic-mutations",
+  "version": "1.0.0",
+  "description": "Postgraphile plugin to enable mutation atomicty with GraphQL requests containing multiple mutations",
+  "main": "dist/index.js",
+  "scripts": {
+    "prebuild": "rimraf dist",
+    "build": "tsc",
+    "test": "jest"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/EmperorRXF/postgraphile-plugin-atomic-mutations.git"
+  },
+  "keywords": [
+    "postgraphile",
+    "graphile",
+    "graphile-build",
+    "plugin",
+    "graphql"
+  ],
+  "author": "Ruwan Fernando",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/EmperorRXF/postgraphile-plugin-atomic-mutations/issues"
+  },
+  "homepage": "https://github.com/EmperorRXF/postgraphile-plugin-atomic-mutations#readme",
+  "dependencies": {},
+  "devDependencies": {
+    "@types/jest": "^25.2.1",
+    "@types/node": "^13.13.5",
+    "@typescript-eslint/eslint-plugin": "^2.31.0",
+    "@typescript-eslint/parser": "^2.31.0",
+    "eslint": "^6.8.0",
+    "eslint-config-prettier": "^6.11.0",
+    "eslint-plugin-prettier": "^3.1.3",
+    "graphql": "^15.0.0",
+    "jest": "^26.0.1",
+    "postgraphile": "^4.7.0",
+    "prettier": "^2.0.5",
+    "rimraf": "^3.0.2",
+    "ts-jest": "^25.5.0",
+    "typescript": "^3.8.3"
+  },
+  "jest": {
+    "preset": "ts-jest",
+    "testEnvironment": "node"
+  }
+}

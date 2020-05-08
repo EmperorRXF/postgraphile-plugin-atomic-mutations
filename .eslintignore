@@ -1,0 +1,4 @@
+node_modules
+dist
+migrations
+src/generated
