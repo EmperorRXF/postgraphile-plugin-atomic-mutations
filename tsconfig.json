@@ -2,11 +2,12 @@
   "compilerOptions": {
     "module": "commonjs",
     "declaration": true,
+    "declarationMap": true,
     "removeComments": true,
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
-    "target": "es2019",
-    "sourceMap": true,
+    "target": "es2017",
+    "lib": ["es2017"],
     "outDir": "./dist",
     "baseUrl": "./src"
   },
