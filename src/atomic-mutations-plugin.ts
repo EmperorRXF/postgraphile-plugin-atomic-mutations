@@ -10,6 +10,7 @@ export enum MutationAtomicityHeaderValue {
 
 interface PostGraphileContext {
   mutationAtomicityContext: MutationAtomicityContext;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   [key: string]: any;
 }
 
@@ -31,6 +32,7 @@ export const getMutationAtomicityContext = (req): MutationAtomicityContext => {
 };
 
 export const AtomicMutationsHook = {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ['postgraphile:httpParamsList'](paramsList: Array<any>, { req }) {
     if (paramsList.length > 1) {
       throw Error(
@@ -40,6 +42,7 @@ export const AtomicMutationsHook = {
 
     if (paramsList.length === 1) {
       const { query, operationName } = paramsList[0];
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const parsedQuery = parse(query) as any;
 
       const [executedDefinition] = parsedQuery.definitions.filter(
