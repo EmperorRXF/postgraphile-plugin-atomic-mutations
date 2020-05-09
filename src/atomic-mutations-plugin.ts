@@ -1,17 +1,18 @@
 import { parse } from 'graphql';
 import { IncomingMessage } from 'http';
-import { makeWrapResolversPlugin } from 'postgraphile';
-
-export const MutationAtomicityHeaderName = 'x-mutation-atomicity';
-export enum MutationAtomicityHeaderValue {
-  ON = 'on',
-  OFF = 'off',
-}
+import { makeWrapResolversPlugin, PostGraphilePlugin } from 'postgraphile';
 
 interface PostGraphileContext {
   mutationAtomicityContext: MutationAtomicityContext;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   [key: string]: any;
+}
+
+export const MutationAtomicityHeaderName = 'x-mutation-atomicity';
+
+export enum MutationAtomicityHeaderValue {
+  ON = 'on',
+  OFF = 'off',
 }
 
 export interface AtomicMutationRequest extends IncomingMessage {
@@ -31,7 +32,7 @@ export const getMutationAtomicityContext = (req): MutationAtomicityContext => {
   }
 };
 
-export const AtomicMutationsHook = {
+export const AtomicMutationsHook: PostGraphilePlugin = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ['postgraphile:httpParamsList'](paramsList: Array<any>, { req }) {
     if (paramsList.length > 1) {
@@ -52,7 +53,7 @@ export const AtomicMutationsHook = {
       if (
         executedDefinition &&
         executedDefinition.operation === 'mutation' &&
-        req.headers[MutationAtomicityHeaderName].toLowerCase() ===
+        req.headers[MutationAtomicityHeaderName]?.toLowerCase() ===
           MutationAtomicityHeaderValue.ON
       ) {
         const totalMutations = executedDefinition.selectionSet.selections.filter(
