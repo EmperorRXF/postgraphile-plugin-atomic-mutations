@@ -4,14 +4,3 @@ node_js:
   - '12'
   - '14'
 cache: yarn
-before_deploy:
-  - yarn run build
-deploy:
-  provider: npm
-  email: rutechs@gmail.com
-  api_key:
-    secure: atq/27cgNWj+p4gn292YWXtyfO6nPucAqUsiqOQds8NzH9UDq7YPYPyArYjwgMy1djfXnbLNqoWrgI+rYXWsExQIDD7Phn+1S/Fr6vpG2LMG+Xu/CCIoCicJM6NK+/mgMOaQ6JKwa7DIXsg3a7bcfV0tUJeCu/MvrepSUeyIlW0a9F9DCPsaxLj9z9UfsphyEZ3RH2sqC5tzDxzI4O5I8SKZeUOrQcmj8Uwrffo+wZhkKe+9uSF3879PenFMnP+oKaOe5rhs8qYW1wI8oqnrohCCFqAFFIkN8ZRGbgi50L6VO77xZuV2d0taX5tnzhBUSAEXvTknGDvVJWXWGif8H7zKAJhUKGQkhJbHWXfurJkSgMjNqePf+kFBsx3GjEfvJwUztj5CzyNYfQK8CsudQ3D3oxXH4OlIwWYWnrCTAvTSCybTF7L9oJZkMTgGpxl9MnlLaOhTnoHV3Nd2L2OejjrrgoXy7rrK2XV2bnJJeQULK4d/43wy4WeBJw2quEyhkDIsdiBOf0pdTzwEqDmiAJaskSB2k8IRP58TdxUJ62s2yr+WD0Pe+166EyD3ourZR7QWeDrEGQcPEXSpem4dWcfpoguMOBADQUkfzAVvHYH5PAjYkUTSAw1NZiVAK3jzk7eo/zqTnAk0P83w95+N78C2DmmLLCDUiPJtI/8shCs=
-  on:
-    tags: true
-    repo: EmperorRXF/postgraphile-plugin-atomic-mutations
-  skip_cleanup: 'true'
