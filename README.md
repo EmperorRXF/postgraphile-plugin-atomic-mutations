@@ -1,7 +1,7 @@
 # postgraphile-plugin-atomic-mutations
 
 ![npm package](https://img.shields.io/npm/v/postgraphile-plugin-atomic-mutations?style=flat-square)
-![MIT license](https://img.shields.io/npm/l/postgraphile-plugin-atomic-mutations?style=flat-square)
+![license](https://img.shields.io/npm/l/postgraphile-plugin-atomic-mutations?style=flat-square)
 
 This Postgraphile plugin allows you to enable mutation atomicity with GraphQL
 requests containing multiple mutations.
@@ -10,6 +10,16 @@ It's ideal if you would like to have client request repeatability when at least
 one mutation in the GraphQL request fails. This would guarantee that either all
 the mutations in the request are `committed` when successful, or all are
 `rolled back` if at least one is erroneous.
+
+## Installing
+
+```
+yarn add postgraphile-plugin-atomic-mutations
+```
+
+```
+npm install postgraphile-plugin-atomic-mutations
+```
 
 ## Usage as Library
 
