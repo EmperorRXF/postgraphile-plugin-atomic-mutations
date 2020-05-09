@@ -1,5 +1,8 @@
 # postgraphile-plugin-atomic-mutations
 
+![npm package](https://img.shields.io/npm/v/postgraphile-plugin-atomic-mutations?style=flat-square)
+![MIT license](https://img.shields.io/npm/l/postgraphile-plugin-atomic-mutations?style=flat-square)
+
 This Postgraphile plugin allows you to enable mutation atomicity with GraphQL
 requests containing multiple mutations.
 
@@ -108,3 +111,14 @@ will be disabled.
 - Introduce plugin options to control default behavior.
   - When the client does not specify a `'X-Mutation-Atomicity'` header.
 - Improve tests to have more code coverage.
+
+## Contributing
+
+This project uses `yarn` as the package manager, so make sure that pre-requisite
+is installed.
+
+```
+npm install -g yarn
+```
+
+Then `clone` & run `yarn`
