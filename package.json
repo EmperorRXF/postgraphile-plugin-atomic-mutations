@@ -1,6 +1,6 @@
 {
   "name": "postgraphile-plugin-atomic-mutations",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Postgraphile plugin to enable mutation atomicty with GraphQL requests containing multiple mutations",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
