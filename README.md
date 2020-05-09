@@ -96,6 +96,15 @@ will be disabled.
   `AtomicMutationsPlugin` must be appended after them - i.e.
   `appendPlugins: [SomePlugin, AnotherPlugin, AtomicMutationsPlugin]`.
 
+- As with any transaction management mechanism, the individual mutations must
+  not contain any explicit `commit` or `rollback` commands.
+
 - Postgraphile v4 has an experimental feature
   [enableQueryBatching](https://www.graphile.org/postgraphile/v4-new-features/#graphql-query-batching)
   which is currently not supported by the plugin.
+
+## Todo
+
+- Introduce plugin options to control default behavior.
+  - When the client does not specify a `'X-Mutation-Atomicity'` header.
+- Improve tests to have more code coverage.

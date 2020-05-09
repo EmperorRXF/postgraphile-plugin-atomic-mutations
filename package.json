@@ -29,7 +29,7 @@
   "bugs": {
     "url": "https://github.com/EmperorRXF/postgraphile-plugin-atomic-mutations/issues"
   },
-  "homepage": "https://github.com/EmperorRXF/postgraphile-plugin-atomic-mutations#readme",
+  "homepage": "https://github.com/EmperorRXF/postgraphile-plugin-atomic-mutations",
   "dependencies": {},
   "devDependencies": {
     "@types/jest": "^25.2.1",
