@@ -1,6 +1,6 @@
 import { parse } from 'graphql';
 import { IncomingMessage } from 'http';
-import { makeWrapResolversPlugin, PostGraphilePlugin } from 'postgraphile';
+import { makeWrapResolversPlugin } from 'postgraphile';
 
 interface PostGraphileContext {
   mutationAtomicityContext: MutationAtomicityContext;
@@ -24,54 +24,60 @@ export type MutationAtomicityContext = {
   executedMutations: { hasErrors: boolean }[];
 };
 
-export const getMutationAtomicityContext = (req): MutationAtomicityContext => {
-  if (req.headers[MutationAtomicityHeaderName] === 'on') {
+export const getMutationAtomicityContext = (
+  req,
+  enablePluginByDefault = false,
+): MutationAtomicityContext => {
+  const body: string | object = req.body;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const paramsList: any = typeof body === 'string' ? { query: body } : body;
+
+  if (Array.isArray(paramsList) && paramsList.length > 1) {
+    throw Error(
+      'AtomicMutationsPlugin does not support GraphQL query batching',
+    );
+  }
+
+  const { query, operationName } = paramsList;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const parsedQuery = parse(query) as any;
+
+  const [executedDefinition] = parsedQuery.definitions.filter(
+    (definition) =>
+      (definition.name === undefined && operationName === undefined) ||
+      definition.name.value === operationName,
+  );
+
+  if (
+    executedDefinition &&
+    executedDefinition.operation === 'mutation' &&
+    ((req.headers[MutationAtomicityHeaderName] &&
+      (req.headers[MutationAtomicityHeaderName] as string).toLowerCase() ===
+        MutationAtomicityHeaderValue.ON) ||
+      (req.headers[MutationAtomicityHeaderName] === undefined &&
+        enablePluginByDefault))
+  ) {
+    req.headers[MutationAtomicityHeaderName] = MutationAtomicityHeaderValue.ON;
+
+    const totalMutations = executedDefinition.selectionSet.selections.filter(
+      (selection) => selection.name.value !== '__typename',
+    ).length;
+
+    (req as AtomicMutationRequest).mutationAtomicityContext = {
+      totalMutations,
+      executedMutations: [],
+    };
+  } else {
+    req.headers[MutationAtomicityHeaderName] = MutationAtomicityHeaderValue.OFF;
+  }
+
+  if (
+    req.headers[MutationAtomicityHeaderName] === MutationAtomicityHeaderValue.ON
+  ) {
     return (req as AtomicMutationRequest).mutationAtomicityContext;
   } else {
     return undefined;
   }
-};
-
-export const AtomicMutationsHook: PostGraphilePlugin = {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  ['postgraphile:httpParamsList'](paramsList: Array<any>, { req }) {
-    if (paramsList.length > 1) {
-      throw Error(
-        'AtomicMutationsPlugin does not support GraphQL query batching',
-      );
-    }
-
-    if (paramsList.length === 1) {
-      const { query, operationName } = paramsList[0];
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const parsedQuery = parse(query) as any;
-
-      const [executedDefinition] = parsedQuery.definitions.filter(
-        (definition) => definition.name.value === operationName,
-      );
-
-      if (
-        executedDefinition &&
-        executedDefinition.operation === 'mutation' &&
-        req.headers[MutationAtomicityHeaderName]?.toLowerCase() ===
-          MutationAtomicityHeaderValue.ON
-      ) {
-        const totalMutations = executedDefinition.selectionSet.selections.filter(
-          (selection) => selection.name.value !== '__typename',
-        ).length;
-
-        (req as AtomicMutationRequest).mutationAtomicityContext = {
-          totalMutations,
-          executedMutations: [],
-        };
-      } else {
-        req.headers[MutationAtomicityHeaderName] =
-          MutationAtomicityHeaderValue.OFF;
-      }
-    }
-
-    return paramsList;
-  },
 };
 
 export const AtomicMutationsPlugin = makeWrapResolversPlugin(
@@ -89,6 +95,13 @@ export const AtomicMutationsPlugin = makeWrapResolversPlugin(
     } = context as PostGraphileContext;
 
     try {
+      if (
+        mutationAtomicityContext &&
+        mutationAtomicityContext.executedMutations.length === 0
+      ) {
+        await pgClient.query('SAVEPOINT atomic_mutations_tx_start');
+      }
+
       const result = await resolver(source, args, context, resolveInfo);
 
       if (mutationAtomicityContext) {
@@ -106,12 +119,19 @@ export const AtomicMutationsPlugin = makeWrapResolversPlugin(
       if (
         mutationAtomicityContext &&
         mutationAtomicityContext.executedMutations.length ===
-          mutationAtomicityContext.totalMutations &&
-        mutationAtomicityContext.executedMutations.filter(
-          (mutation) => mutation.hasErrors === true,
-        ).length
+          mutationAtomicityContext.totalMutations
       ) {
-        pgClient.query(`rollback`);
+        if (
+          mutationAtomicityContext.executedMutations.filter(
+            (mutation) => mutation.hasErrors === true,
+          ).length
+        ) {
+          await pgClient.query(
+            `ROLLBACK TO SAVEPOINT atomic_mutations_tx_start`,
+          );
+        } else {
+          await pgClient.query('RELEASE SAVEPOINT atomic_mutations_tx_start');
+        }
       }
     }
   },

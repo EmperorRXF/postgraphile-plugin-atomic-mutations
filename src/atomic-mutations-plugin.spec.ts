@@ -4,66 +4,293 @@ import {
   MutationAtomicityHeaderValue,
 } from './atomic-mutations-plugin';
 
-const reqWithHeaderOff = {
+const reqSuperSimpleQueryHeaderOn = {
+  headers: { [MutationAtomicityHeaderName]: MutationAtomicityHeaderValue.ON },
+  body: `{
+    someQuery
+  }`,
+};
+
+const reqSimpleQueryHeaderOn = {
+  headers: { [MutationAtomicityHeaderName]: MutationAtomicityHeaderValue.ON },
+  body: {
+    query: `{
+      someQuery
+    }`,
+  },
+};
+
+const reqSimpleMutationHeaderOn = {
+  headers: { [MutationAtomicityHeaderName]: MutationAtomicityHeaderValue.ON },
+  body: {
+    query: `mutation {
+      someMutation
+    }`,
+  },
+};
+
+const reqSimpleMutationHeaderOff = {
   headers: { [MutationAtomicityHeaderName]: MutationAtomicityHeaderValue.OFF },
-  mutationAtomicityContext: {
-    totalMutations: 1,
-    executedMutations: [{ hasErrors: false }],
+  body: {
+    query: `mutation {
+      someMutation
+    }`,
   },
 };
 
-const reqWithoutHeader = {
+const reqSimpleMutationHeaderUndefined = {
   headers: {},
-  mutationAtomicityContext: {
-    totalMutations: 1,
-    executedMutations: [{ hasErrors: false }],
+  body: {
+    query: `mutation {
+      someMutation
+    }`,
   },
 };
 
-const reqMutationWithErrors = {
+const reqSingleQueryHeaderOn = {
   headers: { [MutationAtomicityHeaderName]: MutationAtomicityHeaderValue.ON },
-  mutationAtomicityContext: {
-    totalMutations: 1,
-    executedMutations: [{ hasErrors: false }],
+  body: {
+    query: `query QueryName { 
+      someQuery
+      anotherQuery
+    }`,
+    operationName: 'QueryName',
   },
 };
 
-const reqMutationWithoutErrors = {
+const reqSingleMutationHeaderOn = {
   headers: { [MutationAtomicityHeaderName]: MutationAtomicityHeaderValue.ON },
-  mutationAtomicityContext: {
-    totalMutations: 1,
-    executedMutations: [{ hasErrors: false }],
+  body: {
+    query: `mutation OperationName { 
+      __typename
+      someMutation
+      anotherMutation
+    }`,
+    operationName: 'OperationName',
+    totalMutations: 2,
   },
 };
 
-test('retrieve mutationAtomicityContext - reqMutationWithErrors', () => {
-  const mutationAtomicityContext = getMutationAtomicityContext(
-    reqMutationWithErrors,
-  );
+const reqMixedQueryMutationHeaderOn = {
+  headers: { [MutationAtomicityHeaderName]: MutationAtomicityHeaderValue.ON },
+  body: {
+    query: `
+    query QueryName { 
+      someQuery
+    }
 
-  expect(mutationAtomicityContext).toBeTruthy();
+    mutation MutationName { 
+      __typename
+      someMutation
+      anotherMutation
+    }`,
+    operationName: 'MutationName',
+    totalMutations: 2,
+  },
+};
+
+const reqMixedQueryMutationHeaderOff = {
+  headers: { [MutationAtomicityHeaderName]: MutationAtomicityHeaderValue.OFF },
+  body: {
+    query: `
+    query QueryName { 
+      someQuery
+    }
+
+    mutation MutationName { 
+      __typename
+      someMutation
+      anotherMutation
+    }`,
+    operationName: 'MutationName',
+    totalMutations: 2,
+  },
+};
+
+const reqMultipleMutationHeaderOn = {
+  headers: { [MutationAtomicityHeaderName]: MutationAtomicityHeaderValue.ON },
+  body: {
+    query: `
+    query QueryName { 
+      someQuery
+    }
+
+    mutation MutationName { 
+      __typename
+      someMutation
+      anotherMutation
+    }`,
+    operationName: 'MutationName',
+    totalMutations: 2,
+  },
+};
+
+const reqMultipleMutationHeaderOff = {
+  headers: { [MutationAtomicityHeaderName]: MutationAtomicityHeaderValue.OFF },
+  body: {
+    query: `
+    query QueryName { 
+      someQuery
+    }
+
+    mutation MutationName { 
+      __typename
+      someMutation
+      anotherMutation
+    }`,
+    operationName: 'MutationName',
+    totalMutations: 2,
+  },
+};
+
+const reqUnsupportedQueryBatching = {
+  headers: { [MutationAtomicityHeaderName]: MutationAtomicityHeaderValue.ON },
+  body: [
+    {
+      query: `query QueryName { 
+        someQuery
+      }`,
+    },
+    {
+      query: `query QueryName { 
+        someQuery
+      }`,
+    },
+  ],
+};
+
+describe('query operations', () => {
+  test('super simple query - header on', () => {
+    const mutationAtomicityContext = getMutationAtomicityContext(
+      reqSuperSimpleQueryHeaderOn,
+    );
+
+    expect(mutationAtomicityContext).toBeFalsy();
+  });
+
+  test('simple query - header on', () => {
+    const mutationAtomicityContext = getMutationAtomicityContext(
+      reqSimpleQueryHeaderOn,
+    );
+
+    expect(mutationAtomicityContext).toBeFalsy();
+  });
+
+  test('single query - header on', () => {
+    const mutationAtomicityContext = getMutationAtomicityContext(
+      reqSingleQueryHeaderOn,
+    );
+
+    expect(mutationAtomicityContext).toBeFalsy();
+  });
 });
 
-test('retrieve mutationAtomicityContext - reqMutationWithoutErrors', () => {
-  const mutationAtomicityContext = getMutationAtomicityContext(
-    reqMutationWithoutErrors,
-  );
+describe('mutation operations', () => {
+  test('simple mutation - header on', () => {
+    const mutationAtomicityContext = getMutationAtomicityContext(
+      reqSimpleMutationHeaderOn,
+    );
 
-  expect(mutationAtomicityContext).toBeTruthy();
+    expect(mutationAtomicityContext).toBeTruthy();
+  });
+
+  test('simple mutation - header off', () => {
+    const mutationAtomicityContext = getMutationAtomicityContext(
+      reqSimpleMutationHeaderOff,
+    );
+
+    expect(mutationAtomicityContext).toBeFalsy();
+  });
+
+  test('simple mutation - header undefined', () => {
+    const mutationAtomicityContext = getMutationAtomicityContext(
+      reqSimpleMutationHeaderUndefined,
+    );
+
+    expect(mutationAtomicityContext).toBeFalsy();
+  });
+
+  test('single mutation - header on', () => {
+    const mutationAtomicityContext = getMutationAtomicityContext(
+      reqSingleMutationHeaderOn,
+    );
+
+    expect(mutationAtomicityContext).toBeTruthy();
+  });
+
+  test('multiple mutation - header on', () => {
+    const mutationAtomicityContext = getMutationAtomicityContext(
+      reqMultipleMutationHeaderOn,
+    );
+
+    expect(mutationAtomicityContext).toBeTruthy();
+  });
+
+  test('multiple mutation - header off', () => {
+    const mutationAtomicityContext = getMutationAtomicityContext(
+      reqMultipleMutationHeaderOff,
+    );
+
+    expect(mutationAtomicityContext).toBeFalsy();
+  });
+
+  test('mixed query & mutation - header on', () => {
+    const mutationAtomicityContext = getMutationAtomicityContext(
+      reqMixedQueryMutationHeaderOn,
+    );
+
+    expect(mutationAtomicityContext).toBeTruthy();
+  });
+
+  test('mixed query & mutation - header off', () => {
+    const mutationAtomicityContext = getMutationAtomicityContext(
+      reqMixedQueryMutationHeaderOff,
+    );
+
+    expect(mutationAtomicityContext).toBeFalsy();
+  });
 });
 
-test('MutationAtomicityHeaderName - OFF', () => {
-  const mutationAtomicityContext = getMutationAtomicityContext(
-    reqWithHeaderOff,
-  );
+describe('mutation counts', () => {
+  test('single mutation - total mutation count', () => {
+    const mutationAtomicityContext = getMutationAtomicityContext(
+      reqSingleMutationHeaderOn,
+    );
 
-  expect(mutationAtomicityContext).toBeFalsy();
+    expect(mutationAtomicityContext.totalMutations).toEqual(
+      reqSingleMutationHeaderOn.body.totalMutations,
+    );
+  });
+
+  test('multiple mutation - total mutation count', () => {
+    const mutationAtomicityContext = getMutationAtomicityContext(
+      reqMultipleMutationHeaderOn,
+    );
+
+    expect(mutationAtomicityContext.totalMutations).toEqual(
+      reqMultipleMutationHeaderOn.body.totalMutations,
+    );
+  });
+
+  test('mixed query & mutation - total mutation count', () => {
+    const mutationAtomicityContext = getMutationAtomicityContext(
+      reqMixedQueryMutationHeaderOn,
+    );
+
+    expect(mutationAtomicityContext.totalMutations).toEqual(
+      reqMixedQueryMutationHeaderOn.body.totalMutations,
+    );
+  });
 });
 
-test('MutationAtomicityHeaderName - Missing', () => {
-  const mutationAtomicityContext = getMutationAtomicityContext(
-    reqWithoutHeader,
-  );
+describe('unsupported', () => {
+  test('query batching exception', () => {
+    const unsupportedQueryBatching = (): void => {
+      getMutationAtomicityContext(reqUnsupportedQueryBatching);
+    };
 
-  expect(mutationAtomicityContext).toBeFalsy();
+    expect(unsupportedQueryBatching).toThrow(
+      'AtomicMutationsPlugin does not support GraphQL query batching',
+    );
+  });
 });

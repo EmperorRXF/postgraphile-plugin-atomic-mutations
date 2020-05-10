@@ -24,29 +24,21 @@ npm install postgraphile-plugin-atomic-mutations
 ## Usage as Library
 
 ```js
-import { makePluginHook } from 'postgraphile';
-
 import {
-  AtomicMutationsHook,
   AtomicMutationsPlugin,
   getMutationAtomicityContext,
 } from 'postgraphile-plugin-atomic-mutations';
 
 const app = express();
 
-// Used to detect the custom HTTP header which enables or disables the plugin dynamically.
-const pluginHook = makePluginHook([AtomicMutationsHook]);
-
 app.use(
   postgraphile(pgConfig, schema, {
-    // The actual plugin which controls atomicity.
+    // Append the plugin to the array.
     appendPlugins: [AtomicMutationsPlugin],
-
-    pluginHook,
 
     async additionalGraphQLContextFromRequest(req, res) {
       return {
-        // Additional context shared between AtomicMutationsHook and AtomicMutationsPlugin
+        // Additional context needed by the plugin
         mutationAtomicityContext: getMutationAtomicityContext(req),
       };
     },
@@ -55,6 +47,20 @@ app.use(
 
 app.listen(5000);
 ```
+
+```js
+const getMutationAtomicityContext = (
+  req,
+  enablePluginByDefault = false,
+): MutationAtomicityContext;
+```
+
+This function will extract the HTTP headers from the `req` object passed as the
+1st argument to determine if the mutation atomicity behavior will be enabled or
+not. See _Usage from Client_ for more details.
+
+The 2nd argument `enablePluginByDefault` will determine plugin behavior when the
+HTTP header is not set (defaults to `false`).
 
 ## Usage from Client
 
@@ -97,11 +103,8 @@ matching criteria).
 Now instead if we use the plugin, and the same request is made with the
 `'X-Mutation-Atomicity: on'` HTTP header set by the client, the Mutations `#1` &
 `#3` will never be committed to the database since Mutation `#2` caused an
-error, guaranteeing atomicity for the set of Mutations. If the client decides to
-re-run the same request again, the outcome will be the same.
-
-If the `'X-Mutation-Atomicity'` is set to `'off` or not set at all, the plugin
-will be disabled.
+error, thus, guaranteeing atomicity for the set of Mutations. If the client
+decides to re-run the same request again, the outcome will be the same.
 
 ## Limitations
 
@@ -118,8 +121,6 @@ will be disabled.
 
 ## Todo
 
-- Introduce plugin options to control default behavior.
-  - When the client does not specify a `'X-Mutation-Atomicity'` header.
 - Improve tests to have more code coverage.
 
 ## Contributing
