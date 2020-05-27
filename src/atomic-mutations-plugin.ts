@@ -44,7 +44,7 @@ export const getMutationAtomicityContext = (
 
   const [executedDefinition] = parsedQuery.definitions.filter(
     (definition) =>
-      (definition.name === undefined && operationName === undefined) ||
+      (definition.name === undefined && (operationName === undefined || operationName === null)) ||
       definition.name.value === operationName,
   );
 
