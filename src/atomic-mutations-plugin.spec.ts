@@ -4,6 +4,11 @@ import {
   MutationAtomicityHeaderValue,
 } from './atomic-mutations-plugin';
 
+const reqUndefinedBodyHeaderOn = {
+  headers: { [MutationAtomicityHeaderName]: MutationAtomicityHeaderValue.ON },
+  body: undefined,
+};
+
 const reqSuperSimpleQueryHeaderOn = {
   headers: { [MutationAtomicityHeaderName]: MutationAtomicityHeaderValue.ON },
   body: `{
@@ -169,6 +174,16 @@ const reqUnsupportedQueryBatching = {
     },
   ],
 };
+
+describe('request body', () => {
+  test('request body undefined - header on', () => {
+    const mutationAtomicityContext = getMutationAtomicityContext(
+      reqUndefinedBodyHeaderOn,
+    );
+
+    expect(mutationAtomicityContext).toBeFalsy();
+  });
+});
 
 describe('query operations', () => {
   test('super simple query - header on', () => {

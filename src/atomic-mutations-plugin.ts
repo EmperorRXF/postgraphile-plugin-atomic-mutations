@@ -38,13 +38,19 @@ export const getMutationAtomicityContext = (
     );
   }
 
+  // Request body will be undefined for websocket messages from Subscriptions and we don't need to handle them anyway
+  if (!paramsList) {
+    return undefined;
+  }
+
   const { query, operationName } = paramsList;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const parsedQuery = parse(query) as any;
 
   const [executedDefinition] = parsedQuery.definitions.filter(
     (definition) =>
-      (definition.name === undefined && (operationName === undefined || operationName === null)) ||
+      (definition.name === undefined &&
+        (operationName === undefined || operationName === null)) ||
       definition.name.value === operationName,
   );
 
