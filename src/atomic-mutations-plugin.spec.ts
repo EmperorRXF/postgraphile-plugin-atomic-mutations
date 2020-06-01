@@ -58,6 +58,17 @@ const reqSingleQueryHeaderOn = {
   },
 };
 
+const reqSingleAnonymousQueryHeaderOn = {
+  headers: { [MutationAtomicityHeaderName]: MutationAtomicityHeaderValue.ON },
+  body: {
+    query: `query {
+      someQuery
+      anotherQuery
+    }`,
+    operationName: null,
+  },
+};
+
 const reqSingleMutationHeaderOn = {
   headers: { [MutationAtomicityHeaderName]: MutationAtomicityHeaderValue.ON },
   body: {
@@ -179,6 +190,14 @@ describe('query operations', () => {
   test('single query - header on', () => {
     const mutationAtomicityContext = getMutationAtomicityContext(
       reqSingleQueryHeaderOn,
+    );
+
+    expect(mutationAtomicityContext).toBeFalsy();
+  });
+
+  test('single anonymous query - header on', () => {
+    const mutationAtomicityContext = getMutationAtomicityContext(
+      reqSingleAnonymousQueryHeaderOn,
     );
 
     expect(mutationAtomicityContext).toBeFalsy();
