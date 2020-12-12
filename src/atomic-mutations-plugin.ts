@@ -1,6 +1,6 @@
 import { parse } from 'graphql';
 import { IncomingMessage } from 'http';
-import { makeWrapResolversPlugin } from 'postgraphile';
+import { makeWrapResolversPlugin } from 'graphile-utils';
 
 interface PostGraphileContext {
   mutationAtomicityContext: MutationAtomicityContext;
