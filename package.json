@@ -32,8 +32,7 @@
   },
   "homepage": "https://github.com/EmperorRXF/postgraphile-plugin-atomic-mutations",
   "dependencies": {
-    "graphile-utils": "^4.10.0",
-    "postgraphile-core": "^4.10.0"
+    "graphile-utils": "^4.10.0"
   },
   "devDependencies": {
     "@types/jest": "^25.2.1",
