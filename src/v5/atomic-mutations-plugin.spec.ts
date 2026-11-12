@@ -4,17 +4,53 @@ import { Pool } from 'pg';
 import { postgraphile } from 'postgraphile';
 import type { PostGraphileInstance } from 'postgraphile';
 import { makePgService } from 'postgraphile/adaptors/pg';
+import { context, sideEffect } from 'postgraphile/grafast';
 import { grafserv } from 'postgraphile/grafserv/node';
 import { PostGraphileAmberPreset } from 'postgraphile/presets/amber';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { MutationAtomicityHeaderName } from '../constants';
 import { version } from '../version';
-import { AtomicMutationsPlugin } from './atomic-mutations-plugin';
+import {
+  AtomicMutationsPlugin,
+  RolledBackExtensionName,
+} from './atomic-mutations-plugin';
 
 interface GraphQLResponse {
-  errors?: unknown[];
+  errors?: { message: string }[];
   data?: unknown;
+  extensions?: Record<string, unknown>;
 }
+
+/** A mutation whose database call asks for other settings than the request */
+const OtherSettingsPlugin: GraphileConfig.Plugin = {
+  name: 'OtherSettingsPlugin',
+  version: '0.0.0',
+  schema: {
+    hooks: {
+      GraphQLObjectType_fields(fields, build, { scope }) {
+        if (!scope.isRootMutation) {
+          return fields;
+        }
+        return build.extend(
+          fields,
+          {
+            runWithOtherSettings: {
+              type: build.graphql.GraphQLInt,
+              plan: () =>
+                sideEffect(context(), async ({ withPgClient }) => {
+                  await withPgClient({ 'app.tag': 'other' }, (client) =>
+                    client.query({ text: 'select 1' }),
+                  );
+                  return 1;
+                }),
+            },
+          },
+          'Adding runWithOtherSettings for tests',
+        );
+      },
+    },
+  },
+};
 
 const isGraphQLResponse = (value: unknown): value is GraphQLResponse =>
   typeof value === 'object' && value !== null;
@@ -59,7 +95,7 @@ describeWithDatabase('AtomicMutationsPlugin (PostGraphile v5)', () => {
   ): Promise<TestServer> => {
     const instance = postgraphile({
       extends: [PostGraphileAmberPreset],
-      plugins: [AtomicMutationsPlugin],
+      plugins: [AtomicMutationsPlugin, OtherSettingsPlugin],
       atomicMutations: { enablePluginByDefault },
       pgServices: [
         makePgService({
@@ -156,6 +192,27 @@ describeWithDatabase('AtomicMutationsPlugin (PostGraphile v5)', () => {
       m1: null,
       m2: { item: { name: 'b', tag: 'from-pg-settings' } },
     });
+    expect(result.extensions?.[RolledBackExtensionName]).toEqual({
+      rolledBack: true,
+    });
+    expect(await itemNames()).toEqual([]);
+  });
+
+  it('refuses database calls with settings that differ from the request', async () => {
+    const result = await post(
+      defaultOff,
+      {
+        query: `mutation {
+          a: createItem(input: { item: { name: "a" } }) { item { name } }
+          other: runWithOtherSettings
+        }`,
+      },
+      { [MutationAtomicityHeaderName]: 'on' },
+    );
+
+    // PostGraphile masks the message, as it is not a client error
+    expect(result.errors).toHaveLength(1);
+    expect(result.data).toEqual({ a: { item: { name: 'a' } }, other: null });
     expect(await itemNames()).toEqual([]);
   });
 
@@ -167,6 +224,7 @@ describeWithDatabase('AtomicMutationsPlugin (PostGraphile v5)', () => {
     );
 
     expect(result.errors).toBeUndefined();
+    expect(result.extensions?.[RolledBackExtensionName]).toBeUndefined();
     expect(await itemNames()).toEqual(['a', 'b']);
   });
 

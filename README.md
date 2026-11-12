@@ -39,8 +39,9 @@ const preset = {
 
 For a mutation request with atomicity on, the plugin runs the whole operation in
 one transaction per `pgService`, with every database call in its own savepoint.
-If the result contains any error, the transaction is rolled back; otherwise it
-is committed.
+If the result contains any error, the transaction is rolled back and the
+response carries `extensions.atomicMutations.rolledBack: true`; otherwise it is
+committed.
 
 ## Usage with PostGraphile v4
 
@@ -71,6 +72,9 @@ app.use(
 
 app.listen(5000);
 ```
+
+When a mutation fails, the plugin rolls back the mutations before it and does
+not execute the ones after it; those report an error instead.
 
 ```js
 const getMutationAtomicityContext = (
@@ -143,6 +147,13 @@ decides to re-run the same request again, the outcome will be the same.
 
 - v5: incremental delivery (`@defer` / `@stream`) is not supported in atomic
   mutation requests.
+
+- v5: settings a mutation changes for the current transaction (for example
+  `set_config(..., true)` or `SET LOCAL`) stay in effect for the following
+  mutations of the request.
+
+- v5: database calls run with the request's `pgSettings`; a call that asks for
+  different settings fails.
 
 - v4: if there already exists plugins which are used in postgraphile options,
   `AtomicMutationsPlugin` must be appended after them - i.e.

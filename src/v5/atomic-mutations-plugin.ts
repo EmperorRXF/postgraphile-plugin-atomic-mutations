@@ -31,6 +31,9 @@ declare global {
 
 type ExecuteResult = Awaited<ReturnType<typeof import('grafast').execute>>;
 
+/** Key of the response extension that marks a rolled back request */
+export const RolledBackExtensionName = 'atomicMutations';
+
 class RollbackSignal {
   constructor(public readonly result: ExecutionResult) {}
 }
@@ -46,6 +49,28 @@ const isWithPgClient = (value: unknown): value is WithPgClient<PgClient> =>
 
 const isPgSettings = (value: unknown): value is PgSettings =>
   value === null || isRecord(value);
+
+const definedEntries = (settings: PgSettings): [string, string][] =>
+  Object.entries(settings ?? {}).filter(
+    (entry): entry is [string, string] => entry[1] != null,
+  );
+
+const isSameSettings = (expected: PgSettings, actual: unknown): boolean => {
+  const settings = actual ?? null;
+
+  if (settings === expected) {
+    return true;
+  }
+  if (!isPgSettings(settings)) {
+    return false;
+  }
+
+  const expectedEntries = definedEntries(expected);
+  return (
+    expectedEntries.length === definedEntries(settings).length &&
+    expectedEntries.every(([key, value]) => settings?.[key] === value)
+  );
+};
 
 const isAsyncIterable = (
   value: unknown,
@@ -134,14 +159,22 @@ const executeAtomically = async (
     return withPgClient(pgSettings, (client) =>
       client.withTransaction(async (transactionClient) => {
         // Every call gets its own savepoint, so a failing statement leaves the
-        // outer transaction usable for the remaining mutations.
-        const withSavepointClient: WithPgClient<PgClient> = (
-          _pgSettings,
+        // outer transaction usable for the remaining mutations. The transaction
+        // carries the request's settings, so a call that asks for different
+        // ones cannot be served from it.
+        const withSavepointClient: WithPgClient<PgClient> = async (
+          callSettings,
           callback,
-        ) =>
-          transactionClient.withTransaction(async (savepointClient) =>
+        ) => {
+          if (!isSameSettings(pgSettings, callSettings)) {
+            throw new Error(
+              'AtomicMutationsPlugin cannot run a database call with pgSettings that differ from the request',
+            );
+          }
+          return transactionClient.withTransaction(async (savepointClient) =>
             callback(savepointClient),
           );
+        };
 
         context[withPgClientKey] = withSavepointClient;
         try {
@@ -157,7 +190,13 @@ const executeAtomically = async (
     return await run(0);
   } catch (error) {
     if (error instanceof RollbackSignal) {
-      return error.result;
+      return {
+        ...error.result,
+        extensions: {
+          ...error.result.extensions,
+          [RolledBackExtensionName]: { rolledBack: true },
+        },
+      };
     }
     throw error;
   }

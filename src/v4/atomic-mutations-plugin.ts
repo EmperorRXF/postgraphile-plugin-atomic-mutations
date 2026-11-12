@@ -8,8 +8,10 @@ import {
 } from '../constants';
 
 export type MutationAtomicityContext = {
-  totalMutations: number;
-  executedMutations: { hasErrors: boolean }[];
+  /** True once the savepoint covering the request's mutations exists */
+  started: boolean;
+  /** True once a mutation failed and the request's mutations were rolled back */
+  failed: boolean;
 };
 
 export interface AtomicMutationRequest extends IncomingMessage {
@@ -38,8 +40,8 @@ const isMutationAtomicityContext = (
   value: unknown,
 ): value is MutationAtomicityContext =>
   isRecord(value) &&
-  typeof value.totalMutations === 'number' &&
-  Array.isArray(value.executedMutations);
+  typeof value.started === 'boolean' &&
+  typeof value.failed === 'boolean';
 
 const isPgClientLike = (value: unknown): value is PgClientLike =>
   isRecord(value) && typeof value.query === 'function';
@@ -133,34 +135,20 @@ export const getMutationAtomicityContext = (
   }
 
   req.headers[MutationAtomicityHeaderName] = MutationAtomicityHeaderValue.ON;
-  req.mutationAtomicityContext = {
-    totalMutations: operation.selectionSet.selections.filter(
-      (selection) =>
-        selection.kind !== Kind.FIELD || selection.name.value !== '__typename',
-    ).length,
-    executedMutations: [],
-  };
+  req.mutationAtomicityContext = { started: false, failed: false };
 
   return req.mutationAtomicityContext;
 };
 
-const finishAtomicMutations = async (
-  mutationAtomicityContext: MutationAtomicityContext,
-  pgClient: PgClientLike,
-): Promise<void> => {
-  const { executedMutations, totalMutations } = mutationAtomicityContext;
+export const MutationNotExecutedMessage =
+  'Mutation not executed: an earlier mutation in this request failed and all its mutations were rolled back';
 
-  if (executedMutations.length !== totalMutations) {
-    return;
-  }
-
-  await pgClient.query(
-    executedMutations.some((mutation) => mutation.hasErrors)
-      ? 'ROLLBACK TO SAVEPOINT atomic_mutations_tx_start'
-      : 'RELEASE SAVEPOINT atomic_mutations_tx_start',
-  );
-};
-
+/**
+ * Root mutation fields run one after another. The first one opens a savepoint
+ * inside PostGraphile's request transaction. When a mutation fails, the
+ * savepoint is rolled back and the remaining mutations are not executed, so
+ * the transaction commits none of them.
+ */
 export const AtomicMutationsPlugin: ReturnType<typeof makeWrapResolversPlugin> =
   makeWrapResolversPlugin(
     (context) =>
@@ -178,8 +166,13 @@ export const AtomicMutationsPlugin: ReturnType<typeof makeWrapResolversPlugin> =
         return resolver(source, args, context, resolveInfo);
       }
 
-      if (mutationAtomicityContext.executedMutations.length === 0) {
+      if (mutationAtomicityContext.failed) {
+        throw new Error(MutationNotExecutedMessage);
+      }
+
+      if (!mutationAtomicityContext.started) {
         await pgClient.query('SAVEPOINT atomic_mutations_tx_start');
+        mutationAtomicityContext.started = true;
       }
 
       try {
@@ -189,13 +182,11 @@ export const AtomicMutationsPlugin: ReturnType<typeof makeWrapResolversPlugin> =
           context,
           resolveInfo,
         );
-        mutationAtomicityContext.executedMutations.push({ hasErrors: false });
         return result;
       } catch (error) {
-        mutationAtomicityContext.executedMutations.push({ hasErrors: true });
+        mutationAtomicityContext.failed = true;
+        await pgClient.query('ROLLBACK TO SAVEPOINT atomic_mutations_tx_start');
         throw error;
-      } finally {
-        await finishAtomicMutations(mutationAtomicityContext, pgClient);
       }
     },
   );

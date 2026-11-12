@@ -10,6 +10,7 @@ import { MutationAtomicityHeaderName } from '../constants';
 import {
   AtomicMutationsPlugin,
   getMutationAtomicityContext,
+  MutationNotExecutedMessage,
 } from './atomic-mutations-plugin';
 
 const headerOn = { [MutationAtomicityHeaderName]: 'on' };
@@ -47,27 +48,24 @@ describe('getMutationAtomicityContext', () => {
   });
 
   it.each([
-    ['an anonymous mutation', { query: 'mutation { first }' }, 1],
+    ['an anonymous mutation', { query: 'mutation { first }' }],
     [
       'an anonymous mutation with a null operation name',
       { query: 'mutation { first second }', operationName: null },
-      2,
     ],
     [
       'the only named mutation without an operation name',
       { query: 'mutation M { first }' },
-      1,
     ],
     [
       'the mutation operation of a document that also has a query',
       { query: queryAndMutation, operationName: 'WriteItems' },
-      2,
     ],
-    ['a single-request batch', [{ query: 'mutation { first }' }], 1],
-  ])('counts the mutations of %s', (_, body, totalMutations) => {
+    ['a single-request batch', [{ query: 'mutation { first }' }]],
+  ])('enables atomicity for %s', (_, body) => {
     expect(getMutationAtomicityContext(request(body))).toEqual({
-      totalMutations,
-      executedMutations: [],
+      started: false,
+      failed: false,
     });
   });
 
@@ -192,12 +190,49 @@ describeWithDatabase('AtomicMutationsPlugin (PostGraphile v4)', () => {
   it('rolls back every mutation when one fails and the header is on', async () => {
     const result = await run(createItems('a', 'a', 'b'), headerOn);
 
-    expect(result.errors).toHaveLength(1);
     expect(result.data).toEqual({
       m0: { item: { name: 'a' } },
       m1: null,
-      m2: { item: { name: 'b' } },
+      m2: null,
     });
+    expect(result.errors?.map((error) => String(error))).toEqual([
+      expect.stringContaining('duplicate key value'),
+      expect.stringContaining(MutationNotExecutedMessage),
+    ]);
+    expect(await itemNames()).toEqual([]);
+  });
+
+  it.each([
+    [
+      'a skipped mutation',
+      `mutation {
+        a: createItem(input: { item: { name: "a" } }) { item { name } }
+        b: createItem(input: { item: { name: "a" } }) { item { name } }
+        c: createItem(input: { item: { name: "c" } }) @skip(if: true) { item { name } }
+      }`,
+    ],
+    [
+      'repeated fields without an alias',
+      `mutation {
+        createItem(input: { item: { name: "a" } }) { item { name } }
+        createItem(input: { item: { name: "a" } }) { item { name } }
+        b: createItem(input: { item: { name: "a" } }) { item { name } }
+      }`,
+    ],
+    [
+      'mutations in a root fragment',
+      `mutation {
+        ...Items
+        b: createItem(input: { item: { name: "a" } }) { item { name } }
+      }
+      fragment Items on Mutation {
+        a: createItem(input: { item: { name: "a" } }) { item { name } }
+        c: createItem(input: { item: { name: "c" } }) { item { name } }
+      }`,
+    ],
+  ])('rolls back %s', async (_, source) => {
+    await run(source, headerOn);
+
     expect(await itemNames()).toEqual([]);
   });
 
