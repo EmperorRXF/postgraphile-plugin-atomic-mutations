@@ -1,0 +1,23 @@
+name: Release
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: corepack enable
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: yarn
+          registry-url: https://registry.npmjs.org
+      - run: yarn install --immutable
+      - run: npm publish
