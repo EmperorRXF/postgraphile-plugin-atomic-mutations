@@ -4,7 +4,7 @@
 ![license](https://img.shields.io/npm/l/postgraphile-plugin-atomic-mutations?style=flat-square)
 
 This Postgraphile plugin allows you to enable mutation atomicity with GraphQL
-requests containing multiple mutations.
+requests containing multiple mutations. It supports PostGraphile v4 and v5.
 
 It's ideal if you would like to have client request repeatability when at least
 one mutation in the GraphQL request fails. This would guarantee that either all
@@ -21,7 +21,32 @@ yarn add postgraphile-plugin-atomic-mutations
 npm install postgraphile-plugin-atomic-mutations
 ```
 
-## Usage as Library
+## Usage with PostGraphile v5
+
+```js
+import { AtomicMutationsPlugin } from 'postgraphile-plugin-atomic-mutations/v5';
+
+const preset = {
+  extends: [PostGraphileAmberPreset],
+  plugins: [AtomicMutationsPlugin],
+  atomicMutations: {
+    // Applies atomicity when the request has no `X-Mutation-Atomicity` header.
+    enablePluginByDefault: false,
+  },
+  pgServices: [makePgService({ connectionString, schemas: ['app_public'] })],
+};
+```
+
+For a mutation request with atomicity on, the plugin runs the whole operation in
+one transaction per `pgService`, with every database call in its own savepoint.
+If the result contains any error, the transaction is rolled back and the
+response carries `extensions.atomicMutations.rolledBack: true`; otherwise it is
+committed.
+
+## Usage with PostGraphile v4
+
+`graphile-utils` is installed with PostGraphile v4. Package managers that do not
+hoist dependencies, such as pnpm, need it added explicitly.
 
 ```js
 import {
@@ -47,6 +72,9 @@ app.use(
 
 app.listen(5000);
 ```
+
+When a mutation fails, the plugin rolls back the mutations before it and does
+not execute the ones after it; those report an error instead.
 
 ```js
 const getMutationAtomicityContext = (
@@ -108,16 +136,32 @@ decides to re-run the same request again, the outcome will be the same.
 
 ## Limitations
 
-- If there already exists plugins which are used in postgraphile options,
-  `AtomicMutationsPlugin` must be appended after them - i.e.
-  `appendPlugins: [SomePlugin, AnotherPlugin, AtomicMutationsPlugin]`.
-
 - As with any transaction management mechanism, the individual mutations must
   not contain any explicit `commit` or `rollback` commands.
 
-- Postgraphile v4 has an experimental feature
+- v5: the request holds one database connection per `pgService` until the
+  operation completes.
+
+- v5: any error in the result rolls back the mutations, including errors from
+  fields selected on a mutation payload.
+
+- v5: incremental delivery (`@defer` / `@stream`) is not supported in atomic
+  mutation requests.
+
+- v5: settings a mutation changes for the current transaction (for example
+  `set_config(..., true)` or `SET LOCAL`) stay in effect for the following
+  mutations of the request.
+
+- v5: database calls run with the request's `pgSettings`; a call that asks for
+  different settings fails.
+
+- v4: if there already exists plugins which are used in postgraphile options,
+  `AtomicMutationsPlugin` must be appended after them - i.e.
+  `appendPlugins: [SomePlugin, AnotherPlugin, AtomicMutationsPlugin]`.
+
+- v4: the experimental
   [enableQueryBatching](https://www.graphile.org/postgraphile/v4-new-features/#graphql-query-batching)
-  which is currently not supported by the plugin.
+  feature is not supported.
 
 ## Todo
 
@@ -125,11 +169,17 @@ decides to re-run the same request again, the outcome will be the same.
 
 ## Contributing
 
-This project uses `yarn` as the package manager, so make sure that pre-requisite
-is installed.
+This project uses Yarn 4 through
+[Corepack](https://nodejs.org/api/corepack.html):
 
 ```
-npm install -g yarn
+corepack enable
+yarn install
 ```
 
-Then `clone` & run `yarn`
+The PostGraphile v5 tests need a PostgreSQL database:
+
+```
+docker run -d --rm -p 55432:5432 -e POSTGRES_PASSWORD=postgres postgres:17-alpine
+TEST_DATABASE_URL=postgres://postgres:postgres@localhost:55432/postgres yarn test
+```

@@ -51,7 +51,9 @@ typings/
 # Output of 'npm pack'
 *.tgz
 
-# Yarn Integrity file
+# Yarn
+.yarn/
+.pnp.*
 .yarn-integrity
 
 # next.js build output
@@ -60,7 +62,7 @@ typings/
 # build
 dist
 
-# Jest
+# Test coverage
 coverage
 
 # Development

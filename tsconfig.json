@@ -1,15 +1,18 @@
 {
   "compilerOptions": {
-    "module": "commonjs",
+    "module": "node20",
+    "target": "es2023",
+    "lib": ["es2023"],
+    "types": ["node"],
+    "strict": true,
     "declaration": true,
     "declarationMap": true,
-    "removeComments": true,
-    "emitDecoratorMetadata": true,
-    "experimentalDecorators": true,
-    "target": "es2018",
-    "lib": ["es2018"],
-    "outDir": "./dist",
-    "baseUrl": "./src"
+    "skipLibCheck": true,
+    "isolatedModules": true,
+    "verbatimModuleSyntax": false,
+    "paths": {
+      "graphile-utils": ["./test/v4/node_modules/graphile-utils"]
+    }
   },
-  "exclude": ["node_modules", "dist"]
+  "include": ["src", "test"]
 }

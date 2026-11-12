@@ -1,0 +1,13 @@
+{
+  "name": "postgraphile-plugin-atomic-mutations-test-v4",
+  "private": true,
+  "description": "PostGraphile v4 dependencies for the v4 plugin tests, isolated from the v5 graphql version",
+  "dependencies": {
+    "graphile-build": "^4.14.1",
+    "graphile-build-pg": "^4.14.1",
+    "graphile-utils": "^4.14.1",
+    "graphql": "^15.10.1",
+    "pg": "^8.16.0",
+    "postgraphile-core": "^4.14.1"
+  }
+}
